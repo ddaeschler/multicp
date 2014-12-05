@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -45,12 +46,9 @@ public class FileUtilities {
 		}
 
 		for (File dest : destinations) {
-			if (dest.exists()) {
-				throw new IllegalArgumentException("Destination ("
-						+ dest.getPath() + ") exists.");
+			if (! dest.exists()) {
+				dest.mkdirs();
 			}
-			
-			dest.mkdirs();
 		}
 		
 		File[] files = source.listFiles();
@@ -75,13 +73,34 @@ public class FileUtilities {
 		}
 	}
 	
-	public final void copyFile(File source, java.util.ArrayList<File> destinations)
+	/**
+	 * Size of the block copy buffer
+	 */
+	private final int BUFFER_SZ = 1048576;
+	
+	/**
+	 * The block copy buffer
+	 */
+	private byte[] _fbuf = new byte[BUFFER_SZ];
+	
+	public final void copyFile(File source, java.util.ArrayList<File> destList)
 			throws IOException, InterruptedException, ExecutionException {
-
+		
+		java.util.ArrayList<File> destinations = new ArrayList<File>();
+		
+		//dont copy any destination that already exists and is the same size
+		for (File f : destList) {
+			if (f.exists()) {
+				System.out.println("Skipping: " + f.getAbsolutePath());
+			} else {
+				destinations.add(f);
+			}
+		}
+		
+		if (destinations.size() == 0) return;
+		
 		System.out.println("Copying: " + source.getAbsolutePath());
 		
-		final int BUFFER_SZ = 524288;
-		byte[] fbuf = new byte[BUFFER_SZ];
 		FileInputStream inStream = new FileInputStream(source);
 		FileOutputStream[] outstreams = new FileOutputStream[destinations.size()];
 		
@@ -92,7 +111,7 @@ public class FileUtilities {
 		int sz = -1;
 		Future<?>[] tasks = new Future<?>[destinations.size()];
 		
-		while ((sz = inStream.read(fbuf)) != -1) {
+		while ((sz = inStream.read(_fbuf)) != -1) {
 			int i = 0;
 			for (final FileOutputStream o : outstreams) {
 				final int msz = sz;
@@ -101,7 +120,7 @@ public class FileUtilities {
 			            @Override
 			            public void run() {
 			            	try {
-								o.write(fbuf, 0, msz);
+								o.write(_fbuf, 0, msz);
 							} catch (IOException e) {
 								e.printStackTrace();
 								System.exit(-1);
