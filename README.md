@@ -5,4 +5,4 @@ The implementation reads through the source file stream once and copies to multi
 
 usage
 =======
-Grab the bin folder and run "java multicp [source_dir] dest_dir [dest_dir dest_dir ...]
+Grab the bin folder and run "java multicp.multicp [source_dir] dest_dir [dest_dir dest_dir ...]
